@@ -52,18 +52,48 @@ extension CoreDataWrapper {
 }
 
 extension CoreDataWrapper {
-    func save() {
-        var tempMOC : NSManagedObjectContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
+    func insertEntity( entity : @escaping (NSManagedObjectContext) -> (NSManagedObject) ) {
+        let privateObjectManagedContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
+        privateObjectManagedContext.parent = mainManagedObjectContext
         
-        tempMOC .perform { 
-            try! tempMOC.save()
+        privateObjectManagedContext.perform { [unowned self] in
+            do {
+                try privateObjectManagedContext.save()
+                
+                self.mainManagedObjectContext.perform {
+                    do {
+                        try self.mainManagedObjectContext.save()
+                        
+                        do {
+                            try self.storageManagedObjectContext.save()
+                        } catch {
+                            
+                        }
+                    } catch {
+                        
+                    }
+                }
+            } catch {
+                
+            }
         }
+    }
+}
+
+extension CoreDataWrapper {
+    func fetchEntities( name : String, completion : @escaping (Array<NSManagedObject>?) -> () ) {
         
-        mainManagedObjectContext.perform {
-            try! self.mainManagedObjectContext.save()
-            
-            storageManagedObjectContext.perform {
-                try! self.storageManagedObjectContext.save()
+        let request = NSFetchRequest<NSManagedObject>(entityName: name)
+        let privateObjectManagedContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
+        privateObjectManagedContext.parent = mainManagedObjectContext
+        privateObjectManagedContext.perform {
+            do {
+                let fetchedObjects = try privateObjectManagedContext.fetch(request)
+                DispatchQueue.main.async {
+                    completion( fetchedObjects )
+                }
+            } catch {
+                completion( nil )
             }
         }
     }
