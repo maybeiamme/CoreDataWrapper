@@ -52,9 +52,11 @@ extension CoreDataWrapper {
 }
 
 extension CoreDataWrapper {
-    func insertEntity( entity : @escaping (NSManagedObjectContext) -> (NSManagedObject) ) {
+    func insertEntity( entity : @escaping (NSManagedObjectContext) -> () ) {
         let privateObjectManagedContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
         privateObjectManagedContext.parent = mainManagedObjectContext
+        
+        entity( privateObjectManagedContext )
         
         privateObjectManagedContext.perform { [unowned self] in
             do {
